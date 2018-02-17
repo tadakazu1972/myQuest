@@ -39,7 +39,7 @@ var c = 13;     //勇者画像 配列のインデックス
   window.requestAnimationFrame = requestAnimationFrame;
 })();
  
-//ここからプログラム開始
+//スクリプトの読み込みが終わったら　-> 初期化呼び出し
 window.onload = init();
 
 //初期化
@@ -80,6 +80,7 @@ function drawScreen(){
   if ( t - t_old > 30) {
     t_old = t;  //現在時刻を格納
 	
+	//通常状態　フィールド移動
 	if ( gs == 1 ) {
 	  //画面消去
       draw.clearRect(0,0,640,320);
@@ -92,7 +93,10 @@ function drawScreen(){
 	
       //キャラクター移動
 	  moveChar();
-	} else if ( gs == 2) {
+	}
+    
+	//敵と遭遇
+    if ( gs == 2) {
 	  drawDialog();
 	}
 	
@@ -137,6 +141,28 @@ function moveChar(){
 	case 4:  //左
 	  vx = -1; vy = 0;
 	break;
+  }
+  
+  //壁判定
+  var x1 = parseInt((x + vx) / 32); //マップ配列にアクセスするためparseIntで整数にする
+  var y1 = parseInt((y + vy) / 32); //マップ配列にアクセスするためparseIntで整数にする
+  var x2 = parseInt((x + 31 + vx) / 32);
+  var y2 = parseInt((y + 31 + vy) / 32);
+  
+  //上の計算の結果、マップ配列外の値になるとエラーになるため万が一に備えて最小値と最大値を調整
+  //MX, MYはインデックスが0から開始するから最大値は-1することを忘れないように。
+  if (x1 < 0){ x1 =  0; } 
+  if (x1 > (MX-1)){ x1 = MX - 1; }
+  if (y1 <  0){ y1 =  0; }
+  if (y1 > (MY-1)){ y1 = MY - 1; }
+  if (x2 <  0){ x2 =  0; }
+  if (x2 > (MX-1)){ x2 = MX - 1; }
+  if (y2 <  0){ y2 =  0; }
+  if (y2 > (MY-1)){ y2 = MY - 1; }
+
+  //４方向いっぺんに壁判定 マップチップ3以上は移動させない
+  if (map[y1][x1] > 2 || map[y1][x2] > 2 || map[y2][x1] > 2 || map[y2][x2] > 2){
+    vx = 0; vy = 0;
   }
   
   //移動量を現在の座標に加える
