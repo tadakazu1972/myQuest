@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<!--このソースは主にWindows環境でコメントを読む場面が多いことを想定しているため、あえて文字コードをShit_JISにしています。わかっている方はもちろんutf-8推奨ですが。-->
+<meta charset="Shit_JIS"> 
+<canvas id="screen" width="640" height="320"></canvas>
+<style>
+ #screen { background-color : white; }
+</style>
+<script type="text/javascript">
+
+//グローバル変数
+//画面に描画するための変数もろもろ
+var context = document.getElementById("screen");
+var draw = context.getContext("2d");
+var t = Date.now(); //再描画の時間を測定
+var t_old=0;  //再描画のための変数
+//マップ
+var MX = 20;  //マップX座標最大値
+var MY = 10;  //マップY座標最大値
+var map = []; //マップデータを格納する変数宣言
+//画像ファイル格納用
+var images = [];
+//スクリーンとダイアログ切り替え用
+var gs = 1;
+//キャンバスをマウスダウンした時の関数を設定
+context.onmousedown = mouseHandler;
+
+//勇者データ
+var x = 1 * 32; //x座標初期値　マップ(1,1)　32ピクセルを積算
+var y = 1 * 32; //y座標初期値　マップ(1,1)　32ピクセルを積算
+var vx = 1;     //x方向の移動量
+var vy = 1;     //y方向の移動量
+var dir = 0;    //移動方向　0:停止 1:上 2:右 3:下 4:左
+var c = 13;     //勇者画像 配列のインデックス
+
+//requestAnimatinFrameのブラウザ違いを吸収
+(function() {
+  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                              window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  window.requestAnimationFrame = requestAnimationFrame;
+})();
+ 
+//ここからプログラム開始
+window.onload = init();
+
+//初期化
+function init(){
+
+  //マップ初期化
+  initMap();
+
+  //画像ファイル読み込み
+  var files = ["field.png", "road.png", "dungeon.png", "tree.png", "water.png", "rock.png", "brick.png", "treasure.png", "key.png", "down.png", "up.png", "master.png", "wizard.png", "knight01.png", "knight02.png"];
+  var index=0;
+  for (var i in files ) {
+    var img = new Image();
+    img.src = files[i];
+    images[i] = img; //画像を配列に格納
+	
+	//全ての画像ファイルを読み込み完了したら、描画を開始
+    img.onload = function(){
+      index++;
+	  if ( index == files.length ) {
+	    drawScreen();
+	  }
+    };
+	//もし、読み込みに失敗したら警告を表示
+    img.onerror = function(){
+      alert("画像読み込み失敗");
+    };
+  }
+}
+
+//画面描画
+function drawScreen(){
+  
+  //経過時間をはかる  
+  var t = Date.now();
+  
+  //30ミリ秒経過していたら描画
+  if ( t - t_old > 30) {
+    t_old = t;  //現在時刻を格納
+	
+	if ( gs == 1 ) {
+	  //画面消去
+      draw.clearRect(0,0,640,320);
+	
+	  //マップ描画
+	  drawMap();
+	
+	  //キャラクター描画
+	  drawChar(x,y);
+	
+      //キャラクター移動
+	  moveChar();
+	} else if ( gs == 2) {
+	  drawDialog();
+	}
+	
+  }
+  
+  //ブラウザのタイミングで再描画を呼び出し
+  requestAnimationFrame(drawScreen);
+}
+
+//マップ描画
+function drawMap(){
+  for( var y = 0; y < MY; y++){
+    for( var x = 0; x < MX; x++){
+	  var index = map[y][x];
+	  draw.drawImage( images[index], x*32, y*32);
+	}
+  }
+}
+
+//キャラクター描画
+function drawChar(x,y){
+  draw.drawImage(images[c], x, y);
+}
+
+//キャラクター移動
+function moveChar(){
+
+  //dirの値で移動量を判定
+  switch( dir ){
+    case 0:  //停止
+	  vx = 0; vy = 0;
+	  break;
+	case 1:  //上
+	  vx = 0; vy = -1;
+	  break;
+	case 2:  //右
+	  vx = 1; vy = 0;
+	  break;
+	case 3:  //下
+	  vx = 0; vy = 1;
+	  break;
+	case 4:  //左
+	  vx = -1; vy = 0;
+	break;
+  }
+  
+  //移動量を現在の座標に加える
+  x = x + 2*vx;
+  y = y + 2*vy;
+  if ( x > 608 ) { x = 608; }
+  if ( x < 0   ) { x = 0; }
+  if ( y > 288 ) { y = 288; }
+  if ( y < 0   ) { y = 0; }
+  
+  //アニメーションのため２つの画像のインデックスを入れ替え
+  c=c+1;
+  if ( c > 14   ) { c = 13 };
+}
+
+//ダイアログ
+function drawDialog(){
+  draw.fillRect(160, 80, 160, 160);
+  draw.clearRect(162, 82, 158, 158);
+}
+
+
+//キャンバスをマウスダウンした時
+function mouseHandler(event){
+
+  //ブラウザ標準のイベントを中止
+  event.preventDefault();
+  //クリックしたブラウザ上の座標をキャンパスの位置に補正
+  var mx = event.layerX;
+  var my = event.layerY;
+  var base = event.target.getBoundingClientRect();
+  mx = mx - base.left;
+  my = my - base.top;
+  
+  //ゲーム進行によって変更
+  switch( gs ){
+    //フィールド移動
+    case 1:
+	  setDirection(mx, my);
+	  break;
+	case 2:
+	  gs=1;
+	  break;
+  }
+}
+
+
+//マウスダウンされて、勇者の移動方向を判定
+function setDirection(mx, my){
+  //まずは送られてきたマウスダウン時のx座標,y座標と勇者のx座標,y座標の差分を絶対値で比較
+  //それによって、まずはx座標を動かすのか、それともy座標を動かすのか判定する
+  if (Math.abs(mx - x) > Math.abs(my - y)) {
+    //x座標の移動
+	//(mx - x)がプラスであればマウスx座標が勇者x座標より大きいので右移動
+	if ((mx - x) > 0){
+	  //右をセット
+	  dir = 2; 
+	} else if ((mx - x) < 0){ //(mx -x)がマイナスであれば左移動
+	  //左をセット
+	  dir = 4; 
+	}
+  } else {
+    //y座標の移動
+	//(my -y)がマイナスであればマウスx座標が勇者x座標より小さいので上移動
+	if ((my - y) < 0){
+	  //上をセット
+	  dir = 1;
+	} else if ((my - y) > 0){
+	  //下をセット
+	  dir = 3;
+	}
+  }
+}
+
+//マップデータ初期化
+function initMap(){
+  //MAP1　地上フィールド
+  map = 
+  [  
+    [ 3,3,3,3,3,6,6,6,4,3,3,3,3,3,3,3,3,3,3,3 ],
+    [ 3,1,1,0,0,6,11,6,4,3,3,0,0,0,0,0,0,0,0,3 ],
+    [ 3,1,1,0,0,0,0,0,4,3,3,0,3,3,3,3,3,3,0,3 ],
+    [ 3,1,1,0,0,0,0,0,4,4,3,0,0,0,3,0,0,0,0,3 ],
+    [ 3,1,1,0,0,4,1,4,4,4,3,3,3,0,3,3,0,3,3,3 ],
+    [ 3,3,1,1,0,0,1,1,1,4,4,3,3,0,0,3,0,0,3,3 ],
+    [ 3,3,1,1,3,0,4,3,1,4,4,4,3,7,0,3,3,0,0,3 ],
+    [ 3,3,0,1,0,0,0,4,1,1,3,4,3,3,3,3,3,3,0,3 ],
+    [ 3,0,0,1,0,0,0,4,3,1,3,4,0,3,3,3,3,3,0,3 ],
+    [ 3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3 ],
+  ];
+}
+
+</script>
