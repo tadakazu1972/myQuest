@@ -28,18 +28,19 @@ context.onmousedown = mouseHandler;
 //勇者データ
 var x = 1 * 32; //x座標初期値　マップ(1,1)　32ピクセルを積算
 var y = 1 * 32; //y座標初期値　マップ(1,1)　32ピクセルを積算
-var vx = 1;     //x方向の移動量
-var vy = 1;     //y方向の移動量
+var vx = 2;     //x方向の移動量
+var vy = 2;     //y方向の移動量
 var dir = 0;    //移動方向　0:停止 1:上 2:右 3:下 4:左
 var c = 13;     //勇者画像 配列のインデックス
 var hp = 100;   //勇者の体力
 var str = 10;   //勇者のつよさ
-var attack = 0; //攻撃
+var attack = 0; //勇者の攻撃
 var key = 0;    //カギをもっているか 0:もっていない　1:もっている
 var master = 0; //長老との会話回数
 var wizard = 0; //魔法使いとの会話回数
 var wizardHP = 100; //魔法使いの体力
-var wizardSTR = 5;  //魔法使いのつよさ
+var wizardSTR = 10;  //魔法使いのつよさ
+var wizardAttack = 0; //魔法使いの攻撃
 var battle = 0; //戦闘状況
 
 //*******************************************************************
@@ -261,8 +262,13 @@ function drawMaster(){
 	  var text = "魔法使いもむかしはいいヤツじゃったのに...。\nどうしてああなったのやら...。";
 	  drawText(text);
 	  break;
+	//勇者が負けてもどってきた
+	case 2:
+	  var text = "おお！まけてしまうとは情けない！！\nしっかりたのみますぞ！！";
+	  drawText(text);
+	  break;
 	//魔法使い倒したことを報告
-    case 2:
+    case 3:
 	  var text = "さようか...。\n消えてしまいおったか。\nそんな力を持っていながら...。\nいや、とにかく今回は助かりました。\nかたじけない。";
 	  drawText(text);
 	  break;
@@ -289,21 +295,22 @@ function drawWizard(){
 	  var text = "ほほう、お前が私を倒しにきたのか。\nどれほどの力があるのか、\n見せてもらおう。";
 	  drawText(text);
 	  //ゲーム進行を会話に固定しないと会話がすぐ消えて見えなくなる
-	  gs=3;
+	  gs = 3;
 	  break;
 	//2回目以降
 	case 1:
 	  var text = "覚悟はよいな。\nいくぞ！";
 	  drawText(text);
+	  gs = 3;
 	  break;
 	case 2:
 	  var text = "しょうこりもなく、またやってきたのか。\n";
 	  drawText(text);
-	  gs=3;
+	  gs = 3;
 	  break;
 	case 3:
 	  var text = "ぐ...。\nまさかこのわたしが負けるとはな...。\n一度、この場からは消えるが、\nこれで終わりではない。\nいずれまた会うことになるであろう...。";
-	  master = 2; //長老との会話進行
+	  master = 3; //長老との会話進行
 	  drawText(text);
 	  map[8][15] = 2; //魔法使いを消して床を描画
 	  map[8][14] = 2; //戻るための抜け穴
@@ -333,36 +340,54 @@ function battleWizard(){
   draw.clearRect(162, 222, 316, 76);
   //文字の設定
   draw.font = "14px arial"; //フォントの大きさ、かたち
-  draw.fillStyle = "blue"; //フォントの色
   
   //状況によって分岐
   switch( battle ){
     //勇者のターン
 	case 0:
-	  //ダメージ計算
-	  attack = str;
-	  var text = "勇者のこうげき\n" + attack + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text = "勇者のこうげき！！\n";
 	  drawText(text);
 	  //ゲーム進行を魔法使い戦闘中に固定しないと会話がすぐ消えて見えなくなる
-	  gs=4;
+	  gs = 4;
 	  break;
-	//敵のターン
+	  
+	//勇者の攻撃ダメージ表示　ここでランダム計算させるとループ中なのでずっと表示が変わってしまう
 	case 1:
-	  //ダメージ計算
-	  attack = wizardSTR;
-	  var text = "魔法使いのこうげき\n" + wizardSTR + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text =  "勇者のこうげき！！\n魔法使いに" + attack + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
 	  drawText(text);
-	  gs=4;
+	  gs = 4;
 	  break;
-	//勇者が負けた
+	  
+	//魔法使いのターン
 	case 2:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "魔法使いのこうげき！！\n";
+	  drawText(text);
+	  gs = 4;
+	  break;
+	
+	//魔法使いの攻撃ダメージ表示
+	case 3:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "魔法使いのこうげき！！\n勇者に" + wizardAttack + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
+	  drawText(text);
+	  gs = 4;
+	  break;
+	  
+	//勇者が負けた
+	case 4:
 	  var text = "勇者はまけてしまった...。\n";
 	  drawText(text);
+	  gs = 4;
 	  break;
+	  
 	//魔法使いをたおした
-	case 3:
+	case 5:
 	  var text = "魔法使いをたおした！\n";
 	  drawText(text);
+	  gs = 4;
 	  break;
   }
 }
@@ -425,13 +450,12 @@ function mouseHandler(event){
 	  if (wizard == 0){
 	    wizard = 1;
 	  }
-	  //魔法使いの体力があるなら
-	  if (wizardHP > 0){
-	    //ゲーム進行を魔法使いとの戦いにすすめる
+	  //魔法使いの戦闘開始セリフを聞いたら戦闘に移行
+	  if (wizard == 1||wizard == 2){
 	    gs = 4;
 	  }
 	  //魔法使いの最後のセリフを聞いた後
-	  if (master == 2){
+	  if (master == 3){
 	    //フィールドに戻る
 	    gs = 1;
 	  }
@@ -439,35 +463,65 @@ function mouseHandler(event){
 	  
 	//魔法使いと戦闘
 	case 4:
-	  //マウスダウンするたび、勇者と魔法使いのターンを入れ替え
-	  //勇者の攻撃
-	  if ( battle == 0 ){
-	    //ダメージ計算
-	    wizardHP = wizardHP - attack;
-		//魔法使いのターンに切り替え
-	    battle = 1;
-	  } else {
-	    //ダメージ計算
-		hp = hp - attack;
-		//勇者のターンに切り替え
-	    battle = 0;
+	  switch ( battle ){
+	    //勇者の攻撃　前ふり
+	    case 0:
+		  //ダメージ計算
+		  attack = Math.floor(Math.random()*10) + str;
+		  wizardHP = wizardHP - attack
+		  battle = 1;
+		  break;
+		  
+		//勇者の攻撃　表示
+		case 1:
+		  //魔法使いの体力が0になったら
+		  if (wizardHP < 1){
+		  　　battle = 5; //魔法使いを倒した
+			 wizard = 3;  //魔法使いの会話フラグ進行
+		  } else {
+			 //魔法使いのターンに切り替え
+			 battle = 2;
+		  }
+		  break;
+		
+		//魔法使いの攻撃　前振り
+		case 2:
+		  //ダメージ計算
+		  wizardAttack = Math.floor(Math.random()*10) + wizardSTR;
+		  hp = hp - wizardAttack;
+	      battle = 3;
+		  break;
+		  
+		//魔法使いの攻撃　表示
+		case 3:
+		  //勇者の体力が0になったら
+		  if ( hp < 1){
+	        battle = 4; //勇者が負けた
+		  } else {
+		    //勇者のターンに切り替え
+	        battle = 0;
+		  }
+		  break;
+		  
+		//勇者が負けた表示の後のマウスダウン
+		case 4:
+		  //勇者を長老の前にワープ
+		  x = 6 * 32;
+		  y = 2 * 32;
+		  //長老の会話変更
+		  master = 2;
+		  //魔法使いの会話変更
+		  wizard = 2;
+		  //ゲーム状況をフィールド移動に移行
+	      gs = 1;
+		  break;
+		  
+		//魔法使いを倒したメッセージ表示後にマウスダウン
+		case 5:
+		  //会話モードに進める
+	      gs = 3;
+		  break;
 	  }
-	  
-	  //魔法使いの体力が0になったら
-	  if (wizardHP < 1){
-	  　　battle = 3; //魔法使いを倒した
-		 wizard = 3;  //魔法使いの会話フラグ進行
-		 gs=1;
-	  } else {
-	    //魔法使いとの戦い継続
-	    gs=4;
-	  }
-	  //魔法使いを倒したメッセージ表示後にマウスダウンしたら
-	  if (battle == 3){
-	    //会話モードに進める
-	    gs = 3;
-	  }
-	  //
 	  break;
   }
 }
