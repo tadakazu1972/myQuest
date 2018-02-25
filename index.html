@@ -33,7 +33,10 @@ var vy = 2;     //y方向の移動量
 var dir = 0;    //移動方向　0:停止 1:上 2:右 3:下 4:左
 var c = 13;     //勇者画像 配列のインデックス
 var hp = 100;   //勇者の体力
+var maxhp = 100; //勇者の最大体力
 var str = 10;   //勇者のつよさ
+var level = 1;  //勇者のレベル
+var exp = 0;    //勇者のけいけんち
 var attack = 0; //勇者の攻撃
 var key = 0;    //カギをもっているか 0:もっていない　1:もっている
 var master = 0; //長老との会話回数
@@ -41,6 +44,9 @@ var wizard = 0; //魔法使いとの会話回数
 var wizardHP = 100; //魔法使いの体力
 var wizardSTR = 10;  //魔法使いのつよさ
 var wizardAttack = 0; //魔法使いの攻撃
+var monsterHP = 50; //モンスターの体力
+var monsterSTR = 10; //モンスターのつよさ
+var monsterAttack = 0; //モンスターの攻撃
 var battle = 0; //戦闘状況
 
 //*******************************************************************
@@ -63,11 +69,11 @@ function init(){
   initMap();
 
   //画像ファイル読み込み
-  var files = ["field.png", "road.png", "dungeon.png", "tree.png", "water.png", "rock.png", "brick.png", "door.png", "key.png", "down.png", "up.png", "master.png", "wizard.png", "knight01.png", "knight02.png"];
+  var files = ["field.png", "road.png", "dungeon.png", "tree.png", "water.png", "rock.png", "brick.png", "door.png", "key.png", "down.png", "up.png", "master.png", "wizard.png", "knight01.png", "knight02.png","goblin.png"];
   var index=0;
   for (var i in files ) {
     var img = new Image();
-    img.src = files[i];
+    img.src = "png/" + files[i];
     images[i] = img; //画像を配列に格納
 	
 	//全ての画像ファイルを読み込み完了したら、描画を開始
@@ -107,6 +113,8 @@ function drawScreen(){
 	    drawChar(x,y);
         //キャラクター移動
 	    moveChar();
+		//モンスターの出現
+		encountMonster();
 	    break;
 		
 	  //長老と会話中
@@ -121,6 +129,10 @@ function drawScreen(){
 	  //魔法使いと戦闘中
 	  case 4:
 	    battleWizard();
+		break;
+	  //モンスターと戦闘中
+	  case 5:
+	    battleMonster();
 		break;
 	}
   }
@@ -237,8 +249,23 @@ function moveChar(){
 
 
 //*******************************************************************
+//モンスターの出現
+function encountMonster(){
+  //魔法使いをたおしていなければ、モンスターと遭遇するか計算
+  if ( wizard !=3 ){
+    var encount = Math.floor(Math.random()*300);
+    if ( encount == 1 ){
+      //モンスターと戦闘へ移行
+      gs = 5;
+    }
+  }
+}
+
+//*******************************************************************
 //長老との会話
 function drawMaster(){
+  //長老としゃべるとなぜかHPが回復する
+  hp = maxhp;
   //わくを書く
   draw.fillRect(160, 80, 320, 160);
   //わくの中を白抜き
@@ -264,8 +291,12 @@ function drawMaster(){
 	  break;
 	//勇者が負けてもどってきた
 	case 2:
-	  var text = "おお！まけてしまうとは情けない！！\nしっかりたのみますぞ！！";
+	  var text = "おお！まけてしまうとは情けない！！\nHP回復させたので、しっかりたのみますぞ！！";
 	  drawText(text);
+	  //モンスターにまけて長老の前にワープしても、カギをまだ取っていなかったら長老との会話は0にしておかないとハマる
+	  if ( key == 0 ){
+	    master = 0;
+	  }
 	  break;
 	//魔法使い倒したことを報告
     case 3:
@@ -306,6 +337,8 @@ function drawWizard(){
 	case 2:
 	  var text = "しょうこりもなく、またやってきたのか。\n";
 	  drawText(text);
+	  //魔法使いのHP回復させる
+	  wizardHP = 100;
 	  gs = 3;
 	  break;
 	case 3:
@@ -329,8 +362,6 @@ function battleWizard(){
   draw.fillStyle = "rgb(0,0,0)";
   //魔法使い描画用のわく
   draw.fillRect(200, 32, 220, 160);
-  //わくの中を白抜き
-  //draw.clearRect(202, 34, 216, 156);
   //魔法使いを拡大して描画
   draw.drawImage( images[12], 260, 64, 96, 96);
   
@@ -380,6 +411,7 @@ function battleWizard(){
 	case 4:
 	  var text = "勇者はまけてしまった...。\n";
 	  drawText(text);
+	  dir = 2; //勇者の移動方向を強制的に上にしてほっておいても長老と会話するように仕向ける
 	  gs = 4;
 	  break;
 	  
@@ -388,6 +420,100 @@ function battleWizard(){
 	  var text = "魔法使いをたおした！\n";
 	  drawText(text);
 	  gs = 4;
+	  break;
+  }
+}
+
+
+//*******************************************************************
+//モンスターと戦闘
+function battleMonster(){
+  //モンスター描画用のわく
+  draw.fillRect(200, 32, 220, 160);
+  //わくの中を白抜き
+  draw.clearRect(202, 34, 216, 156);
+  //モンスターを拡大して描画
+  draw.drawImage( images[15], 260, 64, 96, 96);
+  
+  //わくを書く
+  draw.fillRect(160, 220, 320, 80);
+  //わくの中を白抜き
+  draw.clearRect(162, 222, 316, 76);
+  //文字の設定
+  draw.font = "14px arial"; //フォントの大きさ、かたち
+  
+  //状況によって分岐
+  switch( battle ){
+    //エンカウント表示
+	case 0:
+	  draw.fillStyle = "red";
+	  var text = "モンスターがあらわれた！！\n";
+	  drawText(text);
+	  //モンスターHP設定
+	  monsterHP = 50;
+	  //ゲーム進行をモンスター戦闘中に固定
+	  gs = 5;
+	  break;
+	  
+    //勇者のターン
+	case 1:
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text = "勇者のこうげき！！\n";
+	  drawText(text);
+	  //ゲーム進行を魔法使い戦闘中に固定しないと会話がすぐ消えて見えなくなる
+	  gs = 5;
+	  break;
+	  
+	//勇者の攻撃ダメージ表示　ここでランダム計算させるとループ中なのでずっと表示が変わってしまう
+	case 2:
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text =  "勇者のこうげき！！\nモンスターに" + attack + "のダメージ\n" + "[勇者HP] " + hp + "      [モンスターHP] " + monsterHP;
+	  drawText(text);
+	  gs = 5;
+	  break;
+	  
+	//モンスターのターン
+	case 3:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "モンスターのこうげき！！\n";
+	  drawText(text);
+	  gs = 5;
+	  break;
+	
+	//モンスターの攻撃ダメージ表示
+	case 4:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "モンスターのこうげき！！\n勇者に" + monsterAttack + "のダメージ\n" + "[勇者HP] " + hp + "      [モンスターHP] " + monsterHP;
+	  drawText(text);
+	  gs = 5;
+	  break;
+	  
+	//勇者が負けた
+	case 5:
+	  var text = "勇者はまけてしまった...。\n";
+	  drawText(text);
+	  gs = 5;
+	  break;
+	  
+	//モンスターをたおした1
+	case 6:
+	  var text = "モンスターをたおした！\n";
+	  drawText(text);
+	  gs = 5;
+	  break;
+	  
+	//モンスターをたおした2
+	case 7:
+	  var text = "けいけんち100ポイントをかくとくした！\n";
+	  drawText(text);
+	  gs = 5;
+	  break;
+	  
+	//レベルがあがった
+	case 8:
+	  var text = "勇者はレベルがあがった！！\nHPが10あがった！\nつよさが5あがった！";
+	  drawText(text);
+	  gs = 5;
 	  break;
   }
 }
@@ -476,8 +602,8 @@ function mouseHandler(event){
 		case 1:
 		  //魔法使いの体力が0になったら
 		  if (wizardHP < 1){
-		  　　battle = 5; //魔法使いを倒した
-			 wizard = 3;  //魔法使いの会話フラグ進行
+		    battle = 5; //魔法使いを倒した
+		    wizard = 3;  //魔法使いの会話フラグ進行
 		  } else {
 			 //魔法使いのターンに切り替え
 			 battle = 2;
@@ -508,6 +634,8 @@ function mouseHandler(event){
 		  //勇者を長老の前にワープ
 		  x = 6 * 32;
 		  y = 2 * 32;
+		  //体力回復
+		  hp = maxhp;
 		  //長老の会話変更
 		  master = 2;
 		  //魔法使いの会話変更
@@ -520,6 +648,94 @@ function mouseHandler(event){
 		case 5:
 		  //会話モードに進める
 	      gs = 3;
+		  break;
+	  }
+	  break;
+	
+	//モンスターと戦闘中
+	case 5:
+	  switch( battle ){
+	    //エンカウント表示後　マウスダウン
+	    case 0:
+		  //タップしたらいよいよ戦闘進行
+		  battle = 1;
+		  break;
+		//勇者のこうげき表示後　マウスダウン
+		case 1:
+		  //勇者攻撃　計算
+		  attack = Math.floor(Math.random()*10) + str;
+		  //モンスターHPからダメージ引き算
+		  monsterHP = monsterHP - attack;
+		  battle = 2;
+		  break;
+		//勇者のこうげきダメージ表示後　マウスダウン
+		case 2:
+		  //モンスターの体力が0になったら
+		  if (monsterHP < 1){
+		    battle = 6; //モンスターを倒したへすすむ
+		  } else {
+		    battle = 3;
+		  }
+		  break;
+		//モンスターのこうげき表示後　マウスダウン
+		case 3:
+		  //モンスター攻撃　計算
+		  monsterAttack = Math.floor(Math.random()*10) + monsterSTR;
+		  //勇者からダメージ引き算
+		  hp = hp - monsterAttack;
+	      battle = 4;
+		  break;
+		//モンスターの攻撃ダメージ表示後　マウスダウン
+		case 4:
+		  //勇者の体力が0になったら
+		  if ( hp < 1){
+	        battle = 5; //勇者が負けたへすすむ
+		  } else {
+		    //勇者のターンにもどる
+	        battle = 1;
+		  }
+		  break;
+		//勇者がまけた
+		case 5:
+		  //勇者を長老の前にワープ
+		  x = 6 * 32;
+		  y = 2 * 32;
+		  //体力回復
+		  hp = maxhp;
+		  //長老の会話変更
+		  master = 2;
+		  //ゲーム状況をフィールド移動に移行
+		  battle = 0;
+	      gs = 1;
+		  break;
+		//モンスターをたおした表示後　マウスダウン
+		case 6:
+		  //けいけんちを増やして、レベルアップ判定
+		  exp = exp + 100;
+		  if ( exp >= level * 200 ){
+		    level = level + 1;
+		    maxhp = maxhp + 10;
+		    str = str + 5;
+		    //レベルアップ表示にすすむ
+		    battle = 8;
+		  } else {
+		    //フィールドに戻るにすすむ
+		    battle = 7;
+		  }
+		  break;
+		//経験値獲得表示後　マウスダウン
+		case 7:
+		  //戦闘終了
+		  battle = 0;
+		  //ゲーム進行をフィールドにもどす
+		  gs = 1;
+		  break;
+		//レベルアップ表示後　マウスダウン
+		case 8:
+		  //戦闘終了
+		  battle = 0;
+		  //ゲーム進行をフィールドにもどす
+		  gs = 1;
 		  break;
 	  }
 	  break;
@@ -565,7 +781,7 @@ function initMap(){
     [ 3,3,3,3,3,6,6,6,4,3,3,3,3,3,3,3,3,3,3,3 ],
     [ 3,1,1,0,3,6,11,6,4,3,3,0,0,0,0,0,0,0,0,3 ],
     [ 3,1,1,0,3,0,0,0,4,3,3,0,3,3,3,3,3,3,0,3 ],
-    [ 3,1,1,0,3,0,0,0,4,4,3,0,0,0,3,0,0,0,0,3 ],
+    [ 3,1,1,0,3,3,0,0,4,4,3,0,0,0,3,0,0,0,0,3 ],
     [ 3,1,1,0,3,4,1,4,4,4,3,3,3,3,3,3,0,3,0,3 ],
     [ 3,3,1,1,3,4,1,1,1,4,4,3,3,0,0,0,0,5,7,5 ],
     [ 3,3,1,1,3,4,4,3,1,4,4,4,0,0,5,5,5,5,2,5 ],
