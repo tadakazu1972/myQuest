@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<!--Copyright (c) Office of ICT Strategy, City of Osaka-->
+<!--このソースは主にWindows環境でコメントを読む場面が多いことを想定しているため、あえて文字コードをShit_JISにしています。わかっている方はもちろんutf-8推奨ですが。-->
+<!--tutorial5：モンスターとの戦闘がないバージョン-->
+<meta charset="Shit_JIS"> 
+<canvas id="screen" width="640" height="320"></canvas>
+<style>
+ #screen { background-color : white; }
+</style>
+<script type="text/javascript">
+
+//*******************************************************************
+//グローバル変数
+//画面に描画するための変数もろもろ
+var context = document.getElementById("screen");
+var draw = context.getContext("2d");
+var t = Date.now(); //再描画の時間を測定
+var t_old=0;  //再描画のための変数
+//マップ
+var MX = 20;  //マップX座標最大値
+var MY = 10;  //マップY座標最大値
+var map = []; //マップデータを格納する変数宣言
+//画像ファイル格納用
+var images = [];
+//ゲーム進行状況
+var gs = 1;
+//キャンバスをマウスダウンした時の関数を設定
+context.onmousedown = mouseHandler;
+
+//勇者データ
+var x = 1 * 32; //x座標初期値　マップ(1,1)　32ピクセルを積算
+var y = 1 * 32; //y座標初期値　マップ(1,1)　32ピクセルを積算
+var vx = 2;     //x方向の移動量
+var vy = 2;     //y方向の移動量
+var dir = 0;    //移動方向　0:停止 1:上 2:右 3:下 4:左
+var c = 13;     //勇者画像 配列のインデックス
+var hp = 100;   //勇者の体力
+var maxhp = 100; //勇者の最大体力
+var str = 10;   //勇者のつよさ
+var level = 1;  //勇者のレベル
+var exp = 0;    //勇者のけいけんち
+var attack = 0; //勇者の攻撃
+var key = 0;    //カギをもっているか 0:もっていない　1:もっている
+var master = 0; //長老との会話回数
+var wizard = 0; //魔法使いとの会話回数
+var wizardHP = 100; //魔法使いの体力
+var wizardSTR = 10;  //魔法使いのつよさ
+var wizardAttack = 0; //魔法使いの攻撃
+//モンスターの体力
+//モンスターのつよさ
+//モンスターの攻撃
+var battle = 0; //戦闘状況
+
+//*******************************************************************
+//requestAnimatinFrameのブラウザ違いを吸収
+(function() {
+  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                              window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  window.requestAnimationFrame = requestAnimationFrame;
+})();
+ 
+//*******************************************************************
+//スクリプトの読み込みが終わったら　-> 初期化呼び出し
+window.onload = init();
+
+//*******************************************************************
+//初期化
+function init(){
+
+  //マップ初期化
+  initMap();
+
+  //画像ファイル読み込み
+  var files = ["field.png", "road.png", "dungeon.png", "tree.png", "water.png", "rock.png", "brick.png", "door.png", "key.png", "down.png", "up.png", "master.png", "wizard.png", "knight01.png", "knight02.png","goblin.png"];
+  var index=0;
+  for (var i in files ) {
+    var img = new Image();
+    img.src = "png/" + files[i];
+    images[i] = img; //画像を配列に格納
+	
+	//全ての画像ファイルを読み込み完了したら、描画を開始
+    img.onload = function(){
+      index++;
+	  if ( index == files.length ) {
+	    drawScreen();
+	  }
+    };
+	//もし、読み込みに失敗したら警告を表示
+    img.onerror = function(){
+      alert("画像読み込み失敗");
+    };
+  }
+}
+
+//*******************************************************************
+//画面描画
+function drawScreen(){
+  
+  //経過時間をはかる  
+  var t = Date.now();
+  
+  //30ミリ秒経過していたら描画
+  if ( t - t_old > 30) {
+    t_old = t;  //現在時刻を格納
+	
+	//ゲーム状況によって分岐
+	switch ( gs ){
+	  //通常状態　フィールド移動
+	  case 1:
+	    //画面消去
+        draw.clearRect(0,0,640,320);
+	    //マップ描画
+	    drawMap();
+	    //キャラクター描画
+	    drawChar(x,y);
+        //キャラクター移動
+	    moveChar();
+		//モンスターの出現
+		
+	    break;
+		
+	  //長老と会話中
+	  case 2:
+	    drawMaster();
+	    break;
+		
+	  //魔法使いと会話中
+	  case 3:
+	    drawWizard();
+	    break;
+	  //魔法使いと戦闘中
+	  case 4:
+	    battleWizard();
+		break;
+	  //モンスターと戦闘中
+	  
+	}
+  }
+  
+  //ブラウザのタイミングで再描画を呼び出し
+  requestAnimationFrame(drawScreen);
+}
+
+
+//*******************************************************************
+//マップ描画
+function drawMap(){
+  for( var y = 0; y < MY; y++){
+    for( var x = 0; x < MX; x++){
+	  var index = map[y][x];
+	  draw.drawImage( images[index], x*32, y*32);
+	}
+  }
+}
+
+
+//*******************************************************************
+//キャラクター描画
+function drawChar(x,y){
+  draw.drawImage(images[c], x, y);
+}
+
+
+//*******************************************************************
+//キャラクター移動
+function moveChar(){
+
+  //dirの値で移動量を判定
+  switch( dir ){
+    case 0:  //停止
+	  vx = 0; vy = 0;
+	  break;
+	case 1:  //上
+	  vx = 0; vy = -1;
+	  break;
+	case 2:  //右
+	  vx = 1; vy = 0;
+	  break;
+	case 3:  //下
+	  vx = 0; vy = 1;
+	  break;
+	case 4:  //左
+	  vx = -1; vy = 0;
+	break;
+  }
+  
+  //壁判定
+  var x1 = parseInt((x +  4 + vx) / 32); //マップ配列にアクセスするためparseIntで整数にする
+  var y1 = parseInt((y +  4 + vy) / 32); //マップ配列にアクセスするためparseIntで整数にする
+  var x2 = parseInt((x + 31 + vx) / 32);
+  var y2 = parseInt((y + 31 + vy) / 32);
+  
+  //上の計算の結果、マップ配列外の値になるとエラーになるため万が一に備えて最小値と最大値を調整
+  //MX, MYはインデックスが0から開始するから最大値は-1することを忘れないように。
+  if (x1 < 0){ x1 =  0; } 
+  if (x1 > (MX-1)){ x1 = MX - 1; }
+  if (y1 <  0){ y1 =  0; }
+  if (y1 > (MY-1)){ y1 = MY - 1; }
+  if (x2 <  0){ x2 =  0; }
+  if (x2 > (MX-1)){ x2 = MX - 1; }
+  if (y2 <  0){ y2 =  0; }
+  if (y2 > (MY-1)){ y2 = MY - 1; }
+
+  //４方向いっぺんに壁判定 マップチップ3以上は移動させない
+  if (map[y1][x1] > 2 || map[y1][x2] > 2 || map[y2][x1] > 2 || map[y2][x2] > 2){
+    vx = 0; vy = 0;
+	
+	//カギとの当たり判定
+	if (map[y1][x1] == 8 || map[y1][x2] == 8 || map[y2][x1] == 8 || map[y2][x2] == 8){
+	  //カギをもった
+	  key = 1;
+	  //カギのあったマップを0に書き換える
+	  map[3][13] = 0;
+	}
+	
+	//ドアとの当たり判定
+	if (map[y1][x1] == 7 || map[y1][x2] == 7 || map[y2][x1] == 7 || map[y2][x2] == 7){
+	  //カギをもっていたらドアを2に書き換える
+      if ( key ){
+	    map[5][18] = 2;
+	  }
+	}
+	
+	//長老との当たり判定
+	if (map[y1][x1] == 11 || map[y1][x2] == 11 || map[y2][x1] == 11 || map[y2][x2] == 11){
+	  //長老との会話
+	  drawMaster();
+	}
+	
+	//魔法使いとの当たり判定
+	if (map[y1][x1] == 12 || map[y1][x2] == 12 || map[y2][x1] == 12 || map[y2][x2] == 12){
+	  //魔法使いとの会話
+	  drawWizard();
+	}
+  }
+  
+  //移動量を現在の座標に加える
+  x = x + 2 * vx;
+  y = y + 2 * vy;
+  if ( x > 608 ) { x = 608; }
+  if ( x < 0   ) { x = 0; }
+  if ( y > 288 ) { y = 288; }
+  if ( y < 0   ) { y = 0; }
+  
+  //アニメーションのため２つの画像のインデックスを入れ替え
+  c=c+1;
+  if ( c > 14   ) { c = 13 };
+}
+
+
+//*******************************************************************
+//モンスターの出現
+
+
+//*******************************************************************
+//長老との会話
+function drawMaster(){
+  //長老としゃべるとなぜかHPが回復する
+  hp = maxhp;
+  //わくを書く
+  draw.fillRect(160, 80, 320, 160);
+  //わくの中を白抜き
+  draw.clearRect(162, 82, 316, 156);
+  //文字の設定
+  draw.font = "14px arial"; //フォントの大きさ、かたち
+  draw.fillStyle = "black"; //フォントの色
+  
+  //会話フラグによって分岐
+  switch( master ){
+    //初めての会話
+	case 0:
+	  var text = "おお！勇者よ！\nなんとか魔法使いをとじこめているが、\nそろそろ限界がきておる。\nじつは、森にカギをかくしておる。\nカギをとりに行って、\n魔法使いをせっとくしてくだされ。";
+	  drawText(text);
+	  map[3][13] = 8; //マップにカギがあらわれる
+	  //ゲーム進行を長老会話に固定しないと会話がすぐ消えて見えなくなる
+	  gs=2;
+	  break;
+	//もう話を聞いた
+	case 1:
+	  var text = "魔法使いもむかしはいいヤツじゃったのに...。\nどうしてああなったのやら...。";
+	  drawText(text);
+	  break;
+	//勇者が負けてもどってきた
+	case 2:
+	  var text = "おお！まけてしまうとは情けない！！\nHP回復させたので、しっかりたのみますぞ！！";
+	  drawText(text);
+	  //モンスターにまけて長老の前にワープしても、カギをまだ取っていなかったら長老との会話は0にしておかないとハマる
+	  if ( key == 0 ){
+	    master = 0;
+	  }
+	  break;
+	//魔法使い倒したことを報告
+    case 3:
+	  var text = "さようか...。\n消えてしまいおったか。\nそんな力を持っていながら...。\nいや、とにかく今回は助かりました。\nかたじけない。";
+	  drawText(text);
+	  break;
+	
+  }
+}
+
+
+//*******************************************************************
+//魔法使いとの会話
+function drawWizard(){
+  //わくを書く
+  draw.fillRect(160, 80, 320, 160);
+  //わくの中を白抜き
+  draw.clearRect(162, 82, 316, 156);
+  //文字の設定
+  draw.font = "14px arial"; //フォントの大きさ、かたち
+  draw.fillStyle = "blue"; //フォントの色
+  
+  //会話フラグによって分岐
+  switch( wizard ){
+    //初めての会話
+	case 0:
+	  var text = "ほほう、お前が私を倒しにきたのか。\nどれほどの力があるのか、\n見せてもらおう。";
+	  drawText(text);
+	  //ゲーム進行を会話に固定しないと会話がすぐ消えて見えなくなる
+	  gs = 3;
+	  break;
+	//2回目以降
+	case 1:
+	  var text = "覚悟はよいな。\nいくぞ！";
+	  drawText(text);
+	  gs = 3;
+	  break;
+	case 2:
+	  var text = "しょうこりもなく、またやってきたのか。\n";
+	  drawText(text);
+	  //魔法使いのHP回復させる
+	  wizardHP = 100;
+	  gs = 3;
+	  break;
+	case 3:
+	  var text = "ぐ...。\nまさかこのわたしが負けるとはな...。\n一度、この場からは消えるが、\nこれで終わりではない。\nいずれまた会うことになるであろう...。";
+	  master = 3; //長老との会話進行
+	  drawText(text);
+	  map[8][15] = 2; //魔法使いを消して床を描画
+	  map[8][14] = 2; //戻るための抜け穴
+	  map[8][13] = 0; //戻るための抜け穴
+	  break;
+  }
+}
+
+//*******************************************************************
+//魔法使いとの戦い
+function battleWizard(){
+  //一旦画面クリア
+  draw.clearRect(0, 0, 640, 320);
+
+  //背景色変更
+  draw.fillStyle = "rgb(0,0,0)";
+  //魔法使い描画用のわく
+  draw.fillRect(200, 32, 220, 160);
+  //魔法使いを拡大して描画
+  draw.drawImage( images[12], 260, 64, 96, 96);
+  
+  //わくを書く
+  draw.fillRect(160, 220, 320, 80);
+  //わくの中を白抜き
+  draw.clearRect(162, 222, 316, 76);
+  //文字の設定
+  draw.font = "14px arial"; //フォントの大きさ、かたち
+  
+  //状況によって分岐
+  switch( battle ){
+    //勇者のターン
+	case 0:
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text = "勇者のこうげき！！\n";
+	  drawText(text);
+	  //ゲーム進行を魔法使い戦闘中に固定しないと会話がすぐ消えて見えなくなる
+	  gs = 4;
+	  break;
+	  
+	//勇者の攻撃ダメージ表示　ここでランダム計算させるとループ中なのでずっと表示が変わってしまう
+	case 1:
+	  draw.fillStyle = "blue"; //フォントの色
+	  var text =  "勇者のこうげき！！\n魔法使いに" + attack + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
+	  drawText(text);
+	  gs = 4;
+	  break;
+	  
+	//魔法使いのターン
+	case 2:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "魔法使いのこうげき！！\n";
+	  drawText(text);
+	  gs = 4;
+	  break;
+	
+	//魔法使いの攻撃ダメージ表示
+	case 3:
+	  draw.fillStyle = "red"; //フォントの色
+	  var text = "魔法使いのこうげき！！\n勇者に" + wizardAttack + "のダメージ\n" + "[勇者HP] " + hp + "      [魔法使いHP] " + wizardHP;
+	  drawText(text);
+	  gs = 4;
+	  break;
+	  
+	//勇者が負けた
+	case 4:
+	  var text = "勇者はまけてしまった...。\n";
+	  drawText(text);
+	  dir = 2; //勇者の移動方向を強制的に上にしてほっておいても長老と会話するように仕向ける
+	  gs = 4;
+	  break;
+	  
+	//魔法使いをたおした
+	case 5:
+	  var text = "魔法使いをたおした！\n";
+	  drawText(text);
+	  gs = 4;
+	  break;
+  }
+}
+
+
+//*******************************************************************
+//モンスターと戦闘
+
+//*******************************************************************
+//文字をわくの中に書く処理
+function drawText(text){
+  //受け取ったtextを1行づつ書く
+  for (var lines = text.split("\n"), i = 0, l = lines.length; l>i; i++){
+    var line = lines[i];
+	var addY = 18; //フォントサイズ+マージン(余白)
+	
+	//2行め以降の水平位置は行数と行の高さを考慮
+	if (i){
+	  addY = addY + 18 * 1.1618 * i;
+	}
+	
+	//戦闘中はY座標を下に変更してからテキストを書く
+	if ( gs < 4) {
+	  draw.fillText(line, 182, 86 + addY);
+	} else {
+	  draw.fillText(line, 182, 224 + addY);
+	}
+  }
+}
+
+
+//*******************************************************************
+//マウスを押した処理
+function mouseHandler(event){
+
+  //ブラウザ標準のイベントを中止
+  event.preventDefault();
+  //クリックしたブラウザ上の座標をキャンパスの位置に補正
+  var mx = event.layerX;
+  var my = event.layerY;
+  var base = event.target.getBoundingClientRect();
+  mx = mx - base.left;
+  my = my - base.top;
+  
+  //ゲーム進行によって分岐
+  switch( gs ){
+  
+    //フィールド移動
+    case 1:
+	  setDirection(mx, my);
+	  break;
+	  
+	//長老と会話の後
+	case 2:
+	  if (master == 0){
+	    master = 1;  //会話を進めないと何回もカギがあらわれるのでそれをふせぐ
+	  }
+	  //ゲーム進行をフィールド移動にもどす
+	  gs=1;
+	  break;
+	  
+	//魔法使いと会話の後
+	case 3:
+	  if (wizard == 0){
+	    wizard = 1;
+	  }
+	  //魔法使いの戦闘開始セリフを聞いたら戦闘に移行
+	  if (wizard == 1||wizard == 2){
+	    gs = 4;
+	  }
+	  //魔法使いの最後のセリフを聞いた後
+	  if (master == 3){
+	    //フィールドに戻る
+	    gs = 1;
+	  }
+	  break;
+	  
+	//魔法使いと戦闘
+	case 4:
+	  switch ( battle ){
+	    //勇者の攻撃　前ふり
+	    case 0:
+		  //ダメージ計算
+		  attack = Math.floor(Math.random()*10) + str;
+		  wizardHP = wizardHP - attack
+		  battle = 1;
+		  break;
+		  
+		//勇者の攻撃　表示
+		case 1:
+		  //魔法使いの体力が0になったら
+		  if (wizardHP < 1){
+		    battle = 5; //魔法使いを倒した
+		    wizard = 3;  //魔法使いの会話フラグ進行
+		  } else {
+			 //魔法使いのターンに切り替え
+			 battle = 2;
+		  }
+		  break;
+		
+		//魔法使いの攻撃　前振り
+		case 2:
+		  //ダメージ計算
+		  wizardAttack = Math.floor(Math.random()*10) + wizardSTR;
+		  hp = hp - wizardAttack;
+	      battle = 3;
+		  break;
+		  
+		//魔法使いの攻撃　表示
+		case 3:
+		  //勇者の体力が0になったら
+		  if ( hp < 1){
+	        battle = 4; //勇者が負けた
+		  } else {
+		    //勇者のターンに切り替え
+	        battle = 0;
+		  }
+		  break;
+		  
+		//勇者が負けた表示の後のマウスダウン
+		case 4:
+		  //勇者を長老の前にワープ
+		  x = 6 * 32;
+		  y = 2 * 32;
+		  //体力回復
+		  hp = maxhp;
+		  //長老の会話変更
+		  master = 2;
+		  //魔法使いの会話変更
+		  wizard = 2;
+		  //ゲーム状況をフィールド移動に移行
+	      gs = 1;
+		  break;
+		  
+		//魔法使いを倒したメッセージ表示後にマウスダウン
+		case 5:
+		  //会話モードに進める
+	      gs = 3;
+		  break;
+	  }
+	  break;
+	
+	//モンスターと戦闘中
+	
+  }
+}
+
+
+//*******************************************************************
+//勇者の移動方向を判定
+function setDirection(mx, my){
+  //まずは送られてきたマウスダウン時のx座標,y座標と勇者のx座標,y座標の差分を絶対値で比較
+  //それによって、まずはx座標を動かすのか、それともy座標を動かすのか判定する
+  if (Math.abs(mx - x) > Math.abs(my - y)) {
+    //x座標の移動
+	//(mx - x)がプラスであればマウスx座標が勇者x座標より大きいので右移動
+	if ((mx - x) > 0){
+	  //右をセット
+	  dir = 2; 
+	} else if ((mx - x) < 0){ //(mx -x)がマイナスであれば左移動
+	  //左をセット
+	  dir = 4; 
+	}
+  } else {
+    //y座標の移動
+	//(my -y)がマイナスであればマウスx座標が勇者x座標より小さいので上移動
+	if ((my - y) < 0){
+	  //上をセット
+	  dir = 1;
+	} else if ((my - y) > 0){
+	  //下をセット
+	  dir = 3;
+	}
+  }
+}
+
+
+//*******************************************************************
+//マップデータ初期化
+function initMap(){
+  //MAP1　地上フィールド
+  map = 
+  [  
+    [ 3,3,3,3,3,6,6,6,4,3,3,3,3,3,3,3,3,3,3,3 ],
+    [ 3,1,1,0,3,6,11,6,4,3,3,0,0,0,0,0,0,0,0,3 ],
+    [ 3,1,1,0,3,0,0,0,4,3,3,0,3,3,3,3,3,3,0,3 ],
+    [ 3,1,1,0,3,3,0,0,4,4,3,0,0,0,3,0,0,0,0,3 ],
+    [ 3,1,1,0,3,4,1,4,4,4,3,3,3,3,3,3,0,3,0,3 ],
+    [ 3,3,1,1,3,4,1,1,1,4,4,3,3,0,0,0,0,5,7,5 ],
+    [ 3,3,1,1,3,4,4,3,1,4,4,4,0,0,5,5,5,5,2,5 ],
+    [ 3,3,0,1,0,0,0,4,1,1,3,4,0,3,5,2,2,5,2,5 ],
+    [ 3,0,0,1,0,0,0,4,1,1,3,4,0,5,5,12,2,2,2,5 ],
+    [ 3,1,1,1,1,1,1,1,1,1,1,1,1,5,5,5,5,5,5,5 ],
+  ];
+}
+
+</script>
