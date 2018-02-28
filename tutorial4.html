@@ -1,8 +1,8 @@
 <!DOCTYPE html>
+<!--tutorial4：魔法使いとの戦闘、モンスターとの戦闘がないバージョン-->
 <!--Copyright (c) Office of ICT Strategy, City of Osaka-->
 <!--このソースは主にWindows環境でコメントを読む場面が多いことを想定しているため、あえて文字コードをShit_JISにしています。わかっている方はもちろんutf-8推奨ですが。-->
-<!--tutorial4：魔法使いとの戦闘、モンスターとの戦闘がないバージョン-->
-<meta charset="Shit_JIS"> 
+<meta charset="Shit_JIS">
 <canvas id="screen" width="640" height="320"></canvas>
 <style>
  #screen { background-color : white; }
@@ -42,7 +42,7 @@ var exp = 0;    //勇者のけいけんち
 var attack = 0; //勇者の攻撃
 var key = 0;    //カギをもっているか 0:もっていない　1:もっている
 var master = 0; //長老との会話回数
-//魔法使いとの会話回数
+var wizard = 0; //魔法使いとの会話回数
 //魔法使いの体力
 //魔法使いのつよさ
 //魔法使いの攻撃
@@ -58,7 +58,7 @@ var battle = 0; //戦闘状況
                               window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
   window.requestAnimationFrame = requestAnimationFrame;
 })();
- 
+
 //*******************************************************************
 //スクリプトの読み込みが終わったら　-> 初期化呼び出し
 window.onload = init();
@@ -77,7 +77,7 @@ function init(){
     var img = new Image();
     img.src = "png/" + files[i];
     images[i] = img; //画像を配列に格納
-	
+
 	//全ての画像ファイルを読み込み完了したら、描画を開始
     img.onload = function(){
       index++;
@@ -95,14 +95,14 @@ function init(){
 //*******************************************************************
 //画面描画
 function drawScreen(){
-  
-  //経過時間をはかる  
+
+  //経過時間をはかる
   var t = Date.now();
-  
+
   //30ミリ秒経過していたら描画
   if ( t - t_old > 30) {
     t_old = t;  //現在時刻を格納
-	
+
 	//ゲーム状況によって分岐
 	switch ( gs ){
 	  //通常状態　フィールド移動
@@ -116,25 +116,25 @@ function drawScreen(){
         //キャラクター移動
 	    moveChar();
 		//モンスターの出現
-		
+
 	    break;
-		
+
 	  //長老と会話中
 	  case 2:
 	    drawMaster();
 	    break;
-		
+
 	  //魔法使いと会話中
 	  case 3:
 	    drawWizard();
 	    break;
 	  //魔法使いと戦闘中
-	  
+
 	  //モンスターと戦闘中
-	  
+
 	}
   }
-  
+
   //ブラウザのタイミングで再描画を呼び出し
   requestAnimationFrame(drawScreen);
 }
@@ -181,16 +181,16 @@ function moveChar(){
 	  vx = -1; vy = 0;
 	break;
   }
-  
+
   //壁判定
   var x1 = parseInt((x +  4 + vx) / 32); //マップ配列にアクセスするためparseIntで整数にする
   var y1 = parseInt((y +  4 + vy) / 32); //マップ配列にアクセスするためparseIntで整数にする
   var x2 = parseInt((x + 31 + vx) / 32);
   var y2 = parseInt((y + 31 + vy) / 32);
-  
+
   //上の計算の結果、マップ配列外の値になるとエラーになるため万が一に備えて最小値と最大値を調整
   //MX, MYはインデックスが0から開始するから最大値は-1することを忘れないように。
-  if (x1 < 0){ x1 =  0; } 
+  if (x1 < 0){ x1 =  0; }
   if (x1 > (MX-1)){ x1 = MX - 1; }
   if (y1 <  0){ y1 =  0; }
   if (y1 > (MY-1)){ y1 = MY - 1; }
@@ -202,7 +202,7 @@ function moveChar(){
   //４方向いっぺんに壁判定 マップチップ3以上は移動させない
   if (map[y1][x1] > 2 || map[y1][x2] > 2 || map[y2][x1] > 2 || map[y2][x2] > 2){
     vx = 0; vy = 0;
-	
+
 	//カギとの当たり判定
 	if (map[y1][x1] == 8 || map[y1][x2] == 8 || map[y2][x1] == 8 || map[y2][x2] == 8){
 	  //カギをもった
@@ -210,7 +210,7 @@ function moveChar(){
 	  //カギのあったマップを0に書き換える
 	  map[3][13] = 0;
 	}
-	
+
 	//ドアとの当たり判定
 	if (map[y1][x1] == 7 || map[y1][x2] == 7 || map[y2][x1] == 7 || map[y2][x2] == 7){
 	  //カギをもっていたらドアを2に書き換える
@@ -218,20 +218,20 @@ function moveChar(){
 	    map[5][18] = 2;
 	  }
 	}
-	
+
 	//長老との当たり判定
 	if (map[y1][x1] == 11 || map[y1][x2] == 11 || map[y2][x1] == 11 || map[y2][x2] == 11){
 	  //長老との会話
 	  drawMaster();
 	}
-	
+
 	//魔法使いとの当たり判定
 	if (map[y1][x1] == 12 || map[y1][x2] == 12 || map[y2][x1] == 12 || map[y2][x2] == 12){
 	  //魔法使いとの会話
 	  drawWizard();
 	}
   }
-  
+
   //移動量を現在の座標に加える
   x = x + 2 * vx;
   y = y + 2 * vy;
@@ -239,7 +239,7 @@ function moveChar(){
   if ( x < 0   ) { x = 0; }
   if ( y > 288 ) { y = 288; }
   if ( y < 0   ) { y = 0; }
-  
+
   //アニメーションのため２つの画像のインデックスを入れ替え
   c=c+1;
   if ( c > 14   ) { c = 13 };
@@ -262,7 +262,7 @@ function drawMaster(){
   //文字の設定
   draw.font = "14px arial"; //フォントの大きさ、かたち
   draw.fillStyle = "black"; //フォントの色
-  
+
   //会話フラグによって分岐
   switch( master ){
     //初めての会話
@@ -292,7 +292,7 @@ function drawMaster(){
 	  var text = "さようか...。\n消えてしまいおったか。\nそんな力を持っていながら...。\nいや、とにかく今回は助かりました。\nかたじけない。";
 	  drawText(text);
 	  break;
-	
+
   }
 }
 
@@ -307,7 +307,7 @@ function drawWizard(){
   //文字の設定
   draw.font = "14px arial"; //フォントの大きさ、かたち
   draw.fillStyle = "blue"; //フォントの色
-  
+
   //会話フラグによって分岐
   switch( wizard ){
     //初めての会話
@@ -321,7 +321,6 @@ function drawWizard(){
 	case 1:
 	  var text = "覚悟はよいな。\nいくぞ！";
 	  drawText(text);
-	  gs = 3;
 	  break;
 	case 2:
 	  var text = "しょうこりもなく、またやってきたのか。\n";
@@ -354,12 +353,12 @@ function drawText(text){
   for (var lines = text.split("\n"), i = 0, l = lines.length; l>i; i++){
     var line = lines[i];
 	var addY = 18; //フォントサイズ+マージン(余白)
-	
+
 	//2行め以降の水平位置は行数と行の高さを考慮
 	if (i){
 	  addY = addY + 18 * 1.1618 * i;
 	}
-	
+
 	//戦闘中はY座標を下に変更してからテキストを書く
 	if ( gs < 4) {
 	  draw.fillText(line, 182, 86 + addY);
@@ -382,44 +381,46 @@ function mouseHandler(event){
   var base = event.target.getBoundingClientRect();
   mx = mx - base.left;
   my = my - base.top;
-  
+
   //ゲーム進行によって分岐
   switch( gs ){
-  
+
     //フィールド移動
     case 1:
-	  setDirection(mx, my);
-	  break;
-	  
-	//長老と会話の後
-	case 2:
-	  if (master == 0){
-	    master = 1;  //会話を進めないと何回もカギがあらわれるのでそれをふせぐ
-	  }
-	  //ゲーム進行をフィールド移動にもどす
-	  gs=1;
-	  break;
-	  
-	//魔法使いと会話の後
-	case 3:
-	  if (wizard == 0){
-	    wizard = 1;
-	  }
-	  //魔法使いの戦闘開始セリフを聞いたら戦闘に移行
-	  if (wizard == 1||wizard == 2){
-	    //gs = 4;
-	  }
-	  //魔法使いの最後のセリフを聞いた後
-	  if (master == 3){
-	    //フィールドに戻る
-	    gs = 1;
-	  }
-	  break;
-	  
+	    setDirection(mx, my);
+	    break;
+
+	  //長老と会話の後
+	  case 2:
+	    if (master == 0){
+	      master = 1;  //会話を進めないと何回もカギがあらわれるのでそれをふせぐ
+	    }
+	    //ゲーム進行をフィールド移動にもどす
+	    gs=1;
+	    break;
+
+	  //魔法使いと会話の後
+	  case 3:
+	    if (wizard == 0){
+	      wizard = 1;
+	    }
+	    //魔法使いの戦闘開始セリフを聞いたら戦闘に移行
+	    if (wizard == 1||wizard == 2){
+	      //gs = 4;
+        //フィールドに戻る
+	      gs = 1;
+	    }
+	    //魔法使いの最後のセリフを聞いた後
+	    if (master == 3){
+	      //フィールドに戻る
+	      gs = 1;
+	    }
+	    break;
+
 	//魔法使いと戦闘
-	
+
 	//モンスターと戦闘中
-	
+
   }
 }
 
@@ -434,10 +435,10 @@ function setDirection(mx, my){
 	//(mx - x)がプラスであればマウスx座標が勇者x座標より大きいので右移動
 	if ((mx - x) > 0){
 	  //右をセット
-	  dir = 2; 
+	  dir = 2;
 	} else if ((mx - x) < 0){ //(mx -x)がマイナスであれば左移動
 	  //左をセット
-	  dir = 4; 
+	  dir = 4;
 	}
   } else {
     //y座標の移動
@@ -457,8 +458,8 @@ function setDirection(mx, my){
 //マップデータ初期化
 function initMap(){
   //MAP1　地上フィールド
-  map = 
-  [  
+  map =
+  [
     [ 3,3,3,3,3,6,6,6,4,3,3,3,3,3,3,3,3,3,3,3 ],
     [ 3,1,1,0,3,6,11,6,4,3,3,0,0,0,0,0,0,0,0,3 ],
     [ 3,1,1,0,3,0,0,0,4,3,3,0,3,3,3,3,3,3,0,3 ],
