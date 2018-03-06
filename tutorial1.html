@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!--tutorial1：画像読み込み、マップ描画-->
+<!--Copyright (c) Office of ICT Strategy, City of Osaka-->
+<!--このソースは主にWindows環境でコメントを読む場面が多いことを想定しているため、あえて文字コードをShit_JISにしています。わかっている方はもちろんutf-8推奨ですが。-->
+<meta charset="Shit_JIS">
+<canvas id="screen" width="640" height="320"></canvas>
+<style>
+ #screen { background-color : white; }
+</style>
+<script type="text/javascript">
+
+//*******************************************************************
+//グローバル変数
+//画面に描画するための変数もろもろ
+var context = document.getElementById("screen");
+var draw = context.getContext("2d");
+//マップ
+var MX = 20;  //マップX座標最大値
+var MY = 10;  //マップY座標最大値
+var map = []; //マップデータを格納する変数宣言
+//画像ファイル格納用
+var images = [];
+
+//*******************************************************************
+//requestAnimatinFrameのブラウザ違いを吸収
+(function() {
+  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                              window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+  window.requestAnimationFrame = requestAnimationFrame;
+})();
+
+//*******************************************************************
+//スクリプトの読み込みが終わったら　-> 初期化呼び出し
+window.onload = init();
+
+//*******************************************************************
+//初期化
+function init(){
+
+  //マップ初期化
+  initMap();
+
+  //画像ファイル読み込み
+  var files = ["field.png", "road.png", "dungeon.png", "tree.png", "water.png", "rock.png", "brick.png", "door.png", "key.png", "down.png", "up.png", "master.png", "wizard.png", "knight01.png", "knight02.png","goblin.png"];
+  var index=0;
+  for (var i in files ) {
+    var img = new Image();
+    img.src = "png/" + files[i];
+    images[i] = img; //画像を配列に格納
+
+	//全ての画像ファイルを読み込み完了したら、描画を開始
+    img.onload = function(){
+      index++;
+	    if ( index == files.length ) {
+	      drawMap();
+	    }
+    };
+	//もし、読み込みに失敗したら警告を表示
+    img.onerror = function(){
+      alert("画像読み込み失敗");
+    };
+  }
+}
+
+
+//*******************************************************************
+//マップ描画
+function drawMap(){
+  for( var y = 0; y < MY; y++){
+    for( var x = 0; x < MX; x++){
+	    var index = map[y][x];
+	    draw.drawImage( images[index], x*32, y*32);
+	  }
+  }
+}
+
+
+//*******************************************************************
+//マップデータ初期化
+function initMap(){
+  //MAP1　地上フィールド
+  map =
+  [
+    [ 3,3,3,3,3,6,6,6,4,3,3,3,3,3,3,3,3,3,3,3 ],
+    [ 3,1,1,0,3,6,11,6,4,3,3,0,0,0,0,0,0,0,0,3 ],
+    [ 3,1,1,0,3,0,0,0,4,3,3,0,3,3,3,3,3,3,0,3 ],
+    [ 3,1,1,0,3,3,0,0,4,4,3,0,0,0,3,0,0,0,0,3 ],
+    [ 3,1,1,0,3,4,1,4,4,4,3,3,3,3,3,3,0,3,0,3 ],
+    [ 3,3,1,1,3,4,1,1,1,4,4,3,3,0,0,0,0,5,7,5 ],
+    [ 3,3,1,1,3,4,4,3,1,4,4,4,0,0,5,5,5,5,2,5 ],
+    [ 3,3,0,1,0,0,0,4,1,1,3,4,0,3,5,2,2,5,2,5 ],
+    [ 3,0,0,1,0,0,0,4,1,1,3,4,0,5,5,12,2,2,2,5 ],
+    [ 3,1,1,1,1,1,1,1,1,1,1,1,1,5,5,5,5,5,5,5 ],
+  ];
+}
+
+</script>
